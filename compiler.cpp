@@ -44,6 +44,9 @@ struct Token {
 };
 
 class token_handler {
+	friend std::ostream &operator<<(std::ostream &       stream,
+	                                const token_handler &token);
+
 private:
 	std::queue<Token> token_queue;
 
@@ -103,14 +106,14 @@ public:
 	}
 
 	// if current token is expected type RESERVED, then next token and return
-	// true else return false
+	// true else just return false
 	bool consume(std::string_view op) {
 		if (token_queue.empty()) {
 			throw std::out_of_range("token queue is empty.");
 		}
 		auto token = token_queue.front();
-		token_queue.pop();
 		if (Token::token_type::RESERVED == token.type && op == token.str) {
+			token_queue.pop();
 			return true;
 		} else {
 			return false;
@@ -147,6 +150,21 @@ public:
 	}
 };
 
+std::ostream &operator<<(std::ostream &stream, const token_handler &handler) {
+	stream << "{";
+
+	auto queue = handler.token_queue;
+	stream << std::move(queue.front().str);
+	queue.pop();
+	while (!queue.empty()) {
+		stream << ", " << std::move(queue.front().str);
+		queue.pop();
+	}
+
+	stream << "}";
+
+	return stream;
+}
 int main(int argc, char *argv[]) {
 	if (argc != 2) {
 		std::cerr << "There are not enough arguments.\n";
@@ -166,6 +184,7 @@ int main(int argc, char *argv[]) {
 	while (!token.end_of_token()) {
 		if (token.consume('+')) {
 			std::cout << "	add rax, " << token.expect_number() << "\n";
+			continue;
 		}
 
 		token.expect('-');
