@@ -40,7 +40,9 @@ struct Token {
 		RESERVED, // symbol
 		NUMBER    // number
 	} type;
-	std::string str; // token string
+	std::string str;  // token string
+	std::size_t line; // token line index
+	std::size_t pos;  // token position (byte index)
 };
 
 class token_handler {
@@ -49,20 +51,30 @@ class token_handler {
 
 private:
 	std::queue<Token> token_queue;
+	const std::string token_str;
+
+private:
+	std::size_t remove_length = 0;
+	void        remove_prefix(std::string_view &token_str, std::size_t count) {
+    token_str.remove_prefix(count);
+    remove_length += count;
+	}
 
 public:
-	token_handler(std::string_view token_str) {
+	token_handler(std::string_view token_str)
+	    : token_str(token_str) {
+		const auto token_line = token_str;
 		while (token_str.length()) {
 			/* remove blanks */
 			if (std::isblank(token_str.front())) {
 				auto not_space_first_it =
 				    std::find_if(token_str.begin(), token_str.end(),
 				                 [](char c) { return std::isblank(c) == 0; });
-				token_str.remove_prefix(
-				    std::distance(token_str.begin(), not_space_first_it));
+				remove_prefix(token_str,
+				              std::distance(token_str.begin(), not_space_first_it));
 
 				/* finish */
-				if (0 == token_str.length()) {
+				if (!token_str.length()) {
 					break;
 				}
 			}
@@ -72,8 +84,9 @@ public:
 
 			/* binary operator +, - */
 			if ('+' == front || '-' == front) {
-				token_str.remove_prefix(1);
-				token_queue.push({Token::token_type::RESERVED, std::string{front}});
+				token_queue.push({Token::token_type::RESERVED, std::string{front}, 0,
+				                  remove_length});
+				remove_prefix(token_str, 1);
 				continue;
 			}
 
@@ -85,18 +98,34 @@ public:
 				}
 
 				auto num_str = token_str.substr(0, first_notdigit_index);
-				token_str.remove_prefix(first_notdigit_index);
-				token_queue.push({Token::token_type::NUMBER, std::string{num_str}});
+				token_queue.push({Token::token_type::NUMBER, std::string{num_str}, 0,
+				                  remove_length});
+				remove_prefix(token_str, first_notdigit_index);
 				continue;
 			}
 
-			error("Invalid token: "s + front);
+			error("Invalid token: "s + front, token_line, remove_length);
 		}
 	}
 
 private:
-	void error(std::string_view str) const {
-		std::cerr << str << std::endl;
+	/**
+	 * message: error message
+	 */
+	void error(std::string_view message) const {
+		std::cerr << message << std::endl;
+		std::exit(EXIT_FAILURE);
+	}
+	/**
+	 * message: error message
+	 * line: error line string
+	 * pos: error position (byte index)
+	 */
+	void error(std::string_view message, std::string_view line,
+	           std::size_t pos) const {
+		std::cerr << line << "\n";
+		std::cerr << std::string(pos, ' ') << "^ ";
+		std::cerr << message << std::endl;
 		std::exit(EXIT_FAILURE);
 	}
 
@@ -125,8 +154,10 @@ public:
 
 	// if current token is expected type RESERVED, then next token
 	void expect(std::string_view op) {
+		const auto current_token = token_queue.front();
 		if (!consume(op)) {
-			error("Token '"s + op + "' was expected, but not.");
+			error("Token '"s + op + "' was expected, but not.", token_str,
+			      current_token.pos);
 		}
 	}
 	void expect(char op) {
@@ -140,13 +171,14 @@ public:
 			throw std::out_of_range("token queue is empty.");
 		}
 
-		auto token = token_queue.front();
+		const auto current_token = token_queue.front();
 		token_queue.pop();
-		if (token.type != Token::token_type::NUMBER) {
-			error("A numeric token was expected, but not.");
+		if (current_token.type != Token::token_type::NUMBER) {
+			error("A numeric token was expected, but not.", token_str,
+			      current_token.pos);
 		}
 
-		return std::stoi(token.str);
+		return std::stoi(current_token.str);
 	}
 };
 
