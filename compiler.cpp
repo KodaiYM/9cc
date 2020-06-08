@@ -163,15 +163,29 @@ std::unique_ptr<Node> token_handler::primary() {
 
 	return new_node(Node::node_type::num, expect_number());
 }
+std::unique_ptr<Node> token_handler::unary() {
+	if (consume('+')) {
+		// do nothing
+		return primary();
+	}
+	if (consume('-')) {
+		// 0 - primary()
+		return new_node(Node::node_type::sub,
+		                new_node(Node::node_type::num, std::to_string(0)),
+		                primary());
+	}
+
+	return primary();
+}
 
 std::unique_ptr<Node> token_handler::mul() {
-	auto node = primary();
+	auto node = unary();
 
 	while (1) {
 		if (consume('*')) {
-			node = new_node(Node::node_type::mul, std::move(node), primary());
+			node = new_node(Node::node_type::mul, std::move(node), unary());
 		} else if (consume('/')) {
-			node = new_node(Node::node_type::div, std::move(node), primary());
+			node = new_node(Node::node_type::div, std::move(node), unary());
 		} else {
 			return node;
 		}

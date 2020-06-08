@@ -99,6 +99,7 @@ private:
 
 	/* make nodes */
 	std::unique_ptr<Node> primary();
+	std::unique_ptr<Node> unary();
 	std::unique_ptr<Node> mul();
 	std::unique_ptr<Node> expr();
 
