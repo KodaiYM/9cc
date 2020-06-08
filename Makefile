@@ -1,5 +1,11 @@
-9cc: compiler.cpp compile.cpp
-	g++ -std=c++2a -static -o 9cc compiler.cpp compile.cpp
+CPPFLAGS=-std=c++2a -static
+SRCS=$(wildcard *.cpp)
+OBJS=$(SRCS:.cpp=.o)
+
+9cc: $(OBJS)
+	$(CXX) -o 9cc $(OBJS) $(LDFLAGS)
+
+$(OBJS): $(wildcard *.h)
 
 test: 9cc
 	./test.sh

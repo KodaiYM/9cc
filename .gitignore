@@ -6,4 +6,9 @@ a.out
 c.exe
 compile/*
 .vscode/*
-AST.txt
+.vs/*
+Debug/*
+*.txt
+.clang-format
+*.sln
+*.vcx*
