@@ -6,3 +6,4 @@ a.out
 c.exe
 compile/*
 .vscode/*
+AST.txt
