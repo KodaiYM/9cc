@@ -8,7 +8,9 @@ compile/*
 .vscode/*
 .vs/*
 Debug/*
+x64/*
 *.txt
+!EBNF.ebnf
 .clang-format
 *.sln
 *.vcx*

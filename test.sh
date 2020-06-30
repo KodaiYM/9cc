@@ -50,4 +50,8 @@ assert 1 '1>=0'
 assert 1 '1>=1'
 assert 0 '1>=2'
 
+assert 75 '10
+-3+
+83-15'
+
 echo OK

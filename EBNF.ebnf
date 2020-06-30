@@ -1,0 +1,7 @@
+expr ::= equality
+equation ::= comparison ("==" comparison | "!=" comparison)*
+comparison ::= add (">=" add | "<=" add | ">" add | "<" add)*
+add ::= mul ("+" mul | "-" mul)*
+mul ::= sign ("*" sign | "/" sign)*
+sign ::= ("+" | "-") sign | primary
+primary ::= num | "(" equation ")"

@@ -48,7 +48,7 @@ void Parser::expect(std::string_view op) {
 	const auto current_token = token_list.front();
 	if (!consume(op)) {
 		error("Token '"s + op + "' was expected, but not.", current_token.line,
-		      current_token.pos);
+		      current_token.line_num, current_token.pos);
 	}
 }
 std::string Parser::expect_number() {
@@ -61,7 +61,7 @@ std::string Parser::expect_number() {
 	token_list.pop_front();
 	if (!std::all_of(token.begin(), token.end(), isdigit)) {
 		error("A numeric token was expected, but not.", current_token.line,
-		      current_token.pos);
+		      current_token.line_num, current_token.pos);
 	}
 
 	return token;
@@ -167,7 +167,8 @@ std::unique_ptr<Node> Parser::makeAST() {
 	auto AST = expression();
 	if (!token_list.empty()) {
 		const auto &extra_token = token_list.front();
-		error("extra character", extra_token.line, extra_token.pos);
+		error("extra character", extra_token.line, extra_token.line_num,
+		      extra_token.pos);
 	}
 	return AST;
 }

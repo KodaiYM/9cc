@@ -13,7 +13,7 @@ int main(int argc, char *argv[]) {
 
 	Tokenizer     tokenizer(argv[1]);
 	Parser        parser(tokenizer);
-	std::ofstream token_file("token.txt");
+	std::ofstream token_file(".token.txt");
 	token_file << tokenizer;
 	token_file.close();
 
@@ -24,7 +24,7 @@ int main(int argc, char *argv[]) {
 
 	auto AST = parser.makeAST(); // Abstract Syntax Tree
 	// write out abstract syntax tree
-	std::ofstream tree_file("AST.txt");
+	std::ofstream tree_file(".AST.txt");
 	tree_file << AST;
 	tree_file.close();
 
