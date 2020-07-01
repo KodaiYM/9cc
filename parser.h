@@ -12,6 +12,8 @@
 
 struct Node {
 	enum class node_type {
+		statements,     // ; ; ; ...
+		assign,         // =
 		equal,          // ==
 		not_equal,      // !=
 		greater_equal,  // >=
@@ -24,7 +26,8 @@ struct Node {
 		division,       // /
 		plus,           // unary +
 		minus,          // unary -
-		number          // unsigned integer literal
+		number,         // unsigned integer literal
+		identifier      // identifier
 	};
 	node_type type;
 	Node(node_type type)
@@ -34,22 +37,49 @@ struct Node {
 	std::string                        value;
 };
 
-class Parser {
-public:
-	Parser(const Tokenizer &tokenizer) {
-		this->token_list = tokenizer.token_list;
-	}
-	Parser(Tokenizer &&tokenizer) {
-		this->token_list = std::move(tokenizer.token_list);
-	}
-	Parser(std::list<Token> token_list)
-	    : token_list(std::move(token_list)) {}
-	Parser(std::list<Token> &&token_list)
-	    : token_list(std::move(token_list)) {}
-
+class TokenManager {
 private:
 	std::list<Token> token_list;
+	Token            lastPoppedToken;
 
+public:
+	TokenManager(const TokenManager &tokenManager) {
+		this->token_list = tokenManager.token_list;
+	}
+	TokenManager(TokenManager &&tokenManager) noexcept {
+		this->token_list = std::move(tokenManager.token_list);
+	}
+	TokenManager(const std::list<Token> &token_list)
+	    : token_list(token_list) {}
+	TokenManager(std::list<Token> &&token_list)
+	    : token_list(std::move(token_list)) {}
+
+	Token &getFrontToken() {
+		return token_list.front();
+	}
+	void popFrontToken() {
+		lastPoppedToken = getFrontToken();
+		token_list.pop_front();
+	}
+	const Token &getLastPoppedToken() {
+		return lastPoppedToken;
+	}
+	bool tokenListIsEmpty() {
+		return token_list.empty();
+	}
+};
+class Parser : protected TokenManager {
+public:
+	Parser(const Tokenizer &tokenizer)
+	    : TokenManager(tokenizer.token_list) {}
+	Parser(Tokenizer &&tokenizer)
+	    : TokenManager(std::move(tokenizer.token_list)) {}
+	Parser(const std::list<Token> &token_list)
+	    : TokenManager(token_list) {}
+	Parser(std::list<Token> &&token_list)
+	    : TokenManager(std::move(token_list)) {}
+
+private:
 	/* Abstract Syntax Tree*/
 private:
 	// if current token is expected op, then next token and return
@@ -62,6 +92,11 @@ private:
 	// if current token is number, then next token and return the number
 	// else error
 	std::string expect_number();
+
+	// if current token is identifier, then next token and return the identifier
+	// else error
+	std::string expect_identifier();
+
 	/**
 	 * new terminal node
 	 */
@@ -89,8 +124,11 @@ private:
 	}
 
 	/* make nodes */
+	std::unique_ptr<Node> program();
+	std::unique_ptr<Node> statement();
 	std::unique_ptr<Node> expression();
-	std::unique_ptr<Node> equality();
+	std::unique_ptr<Node> assign();
+	std::unique_ptr<Node> equation();
 	std::unique_ptr<Node> comparison();
 	std::unique_ptr<Node> add();
 	std::unique_ptr<Node> mul();

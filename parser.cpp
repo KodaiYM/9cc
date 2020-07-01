@@ -1,6 +1,7 @@
 #include "parser.h"
 #include "error.h"
 #include <cassert>
+#include <cstring>
 #include <iostream>
 
 using namespace std::string_literals;
@@ -33,32 +34,42 @@ operator+(basic_string<charT, traits, Allocator> &&lhs,
 } // namespace std
 
 bool Parser::consume(std::string_view op) {
-	if (token_list.empty()) {
+	if (tokenListIsEmpty()) {
 		return false;
 	}
-	auto token = token_list.front();
-	if (op == token.value) {
-		token_list.pop_front();
+
+	if (op == getFrontToken().value) {
+		popFrontToken();
 		return true;
 	} else {
 		return false;
 	}
 }
 void Parser::expect(std::string_view op) {
-	const auto current_token = token_list.front();
+	if (tokenListIsEmpty()) {
+		const auto &lastPoppedToken = getLastPoppedToken();
+		error("Token '"s + op + "' was expected, but not.", lastPoppedToken.line,
+		      lastPoppedToken.line_num,
+		      lastPoppedToken.pos + lastPoppedToken.value.size());
+	}
+
 	if (!consume(op)) {
+		const auto &current_token = getFrontToken();
 		error("Token '"s + op + "' was expected, but not.", current_token.line,
 		      current_token.line_num, current_token.pos);
 	}
 }
 std::string Parser::expect_number() {
-	if (token_list.empty()) {
-		throw std::out_of_range("token queue is empty.");
+	if (tokenListIsEmpty()) {
+		const auto &lastPoppedToken = getLastPoppedToken();
+		error("A numeric token was expected, but not.", lastPoppedToken.line,
+		      lastPoppedToken.line_num,
+		      lastPoppedToken.pos + lastPoppedToken.value.size());
 	}
 
-	const auto  current_token = token_list.front();
+	const auto  current_token = getFrontToken();
 	const auto &token         = current_token.value;
-	token_list.pop_front();
+	popFrontToken();
 	if (!std::all_of(token.begin(), token.end(), isdigit)) {
 		error("A numeric token was expected, but not.", current_token.line,
 		      current_token.line_num, current_token.pos);
@@ -66,27 +77,65 @@ std::string Parser::expect_number() {
 
 	return token;
 }
+std::string Parser::expect_identifier() {
+	if (tokenListIsEmpty()) {
+		const auto &lastPoppedToken = getLastPoppedToken();
+		error("An identifier token was expected, but not.", lastPoppedToken.line,
+		      lastPoppedToken.line_num,
+		      lastPoppedToken.pos + lastPoppedToken.value.size());
+	}
+
+	const auto  current_token = getFrontToken();
+	const auto &token         = current_token.value;
+	popFrontToken();
+
+	if ("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_"s.find(
+	        token.front()) == std::string::npos ||
+	    token.find_first_not_of(
+	        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_0123456789") !=
+	        token.npos) {
+		error("An identifier token was expected, but not.", current_token.line,
+		      current_token.line_num, current_token.pos);
+	}
+
+	return token;
+}
 std::unique_ptr<Node> Parser::new_node(Node::node_type type,
                                        std::string     value) {
-	switch (type) {
-	case Node::node_type::number: {
-		std::unique_ptr<Node> node(new Node(type));
-		node->value = value;
-		return node;
-	} break;
-	default:
-		/* non terminal type */
-		throw std::invalid_argument("Node::node_type = "s +
-		                            std::to_string(static_cast<int>(type)) +
-		                            " is not a terminal node.");
-		break;
-	}
+	std::unique_ptr<Node> node(new Node(type));
+	node->value = value;
+	return node;
 }
 
-std::unique_ptr<Node> Parser::expression() {
-	return equality();
+std::unique_ptr<Node> Parser::program() {
+	std::unique_ptr<Node> node(new Node(Node::node_type::statements));
+
+	while (!tokenListIsEmpty()) {
+		node->child.push_back(statement());
+	}
+
+	return node;
 }
-std::unique_ptr<Node> Parser::equality() {
+std::unique_ptr<Node> Parser::statement() {
+	auto node = expression();
+
+	expect(";");
+
+	return node;
+}
+std::unique_ptr<Node> Parser::expression() {
+	return assign();
+}
+std::unique_ptr<Node> Parser::assign() {
+	auto node = equation();
+
+	if (consume("=")) {
+		node = new_node(Node::node_type::assign, std::move(node), assign());
+	}
+
+	return node;
+}
+std::unique_ptr<Node> Parser::equation() {
 	auto node = comparison();
 
 	while (1) {
@@ -155,20 +204,32 @@ std::unique_ptr<Node> Parser::sign() {
 }
 std::unique_ptr<Node> Parser::primary() {
 	if (consume("(")) {
-		auto node = equality();
+		auto node = expression();
 		expect(")");
 		return node;
 	}
 
+	/* identifier? */
+	const auto &token = getFrontToken().value;
+
+	if ("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_"s.find(
+	        token.front()) != std::string::npos &&
+	    token.find_first_not_of(
+	        "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_") ==
+	        token.npos) {
+		return new_node(Node::node_type::identifier, expect_identifier());
+	}
 	return new_node(Node::node_type::number, expect_number());
 }
 
 std::unique_ptr<Node> Parser::makeAST() {
-	auto AST = expression();
-	if (!token_list.empty()) {
-		const auto &extra_token = token_list.front();
+	auto AST = program();
+
+	if (!tokenListIsEmpty()) {
+		const auto &extra_token = getFrontToken();
 		error("extra character", extra_token.line, extra_token.line_num,
 		      extra_token.pos);
 	}
+
 	return AST;
 }

@@ -22,19 +22,25 @@ int main(int argc, char *argv[]) {
 	             ".global main\n"
 	             "main:\n";
 
-	auto AST = parser.makeAST(); // Abstract Syntax Tree
+	// prologue
+	std::cout << "	push rbp\n"
+	          << "	mov rbp, rsp\n"
+	          << "	sub rsp, " << 26 * 8 << "\n";
+
+	const auto AST = parser.makeAST(); // Abstract Syntax Tree
 	// write out abstract syntax tree
 	std::ofstream tree_file(".AST.txt");
-	tree_file << AST;
+	tree_file << *AST;
 	tree_file.close();
 
 	// calculate whole node
-	gen(AST);
+	gen(*AST);
 
-	// set result to rax
-	std::cout << "	pop rax\n";
+	// now rax is last evaluated(stacked) value
 
-	// main ret
+	// epilogue
+	std::cout << "	add rsp, " << 26 * 8 << "\n"
+	          << "	pop rbp\n";
 	std::cout << "	ret\n";
 
 	return EXIT_SUCCESS;

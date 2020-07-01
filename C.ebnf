@@ -1,7 +1,10 @@
-expr ::= equality
+program ::= statement*
+statement ::= assign ";"
+expression ::= assign
+assign ::= equation "=" assign?
 equation ::= comparison ("==" comparison | "!=" comparison)*
 comparison ::= add (">=" add | "<=" add | ">" add | "<" add)*
 add ::= mul ("+" mul | "-" mul)*
 mul ::= sign ("*" sign | "/" sign)*
 sign ::= ("+" | "-") sign | primary
-primary ::= num | "(" equation ")"
+primary ::= num | ident | "(" expression ")"

@@ -5,6 +5,6 @@
 #include <memory>
 
 // calculate node and "push" result to stack
-void gen(const std::unique_ptr<Node> &node);
+void gen(const Node &node);
 
 #endif

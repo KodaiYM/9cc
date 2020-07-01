@@ -10,7 +10,7 @@ compile/*
 Debug/*
 x64/*
 *.txt
-!EBNF.ebnf
+!C.ebnf
 .clang-format
 *.sln
 *.vcx*
