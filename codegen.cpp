@@ -2,6 +2,8 @@
 #include <cassert>
 #include <iostream>
 
+using namespace std::string_literals;
+
 // 左辺値なら、その左辺値のアドレスをスタックに積む
 // それ以外はエラー
 static void setup_identifier(const Node &node) {
@@ -10,21 +12,142 @@ static void setup_identifier(const Node &node) {
 		std::exit(EXIT_FAILURE);
 	}
 	std::cout << "	mov rax, rbp\n"
-	          << "	sub rax, " << (node.value.at(0) - 'a') * 8 << "\n"
+	          << "	sub rax, " << (node.value[0] - 'a') * 8 << "\n"
 	          << "	push rax\n";
 }
 void gen(const Node &node) {
 	if (Node::node_type::identifier == node.type) {
 		assert(node.child.empty());
+
 		setup_identifier(node);
 		std::cout << "	pop rax\n"
 		          << "	mov rax, [rax]\n"
 		          << "	push rax\n";
+
 		return;
 	}
 	if (Node::node_type::number == node.type) {
 		assert(node.child.empty());
+
 		std::cout << "	push " << node.value << "\n";
+
+		return;
+	}
+
+	// call
+	if (Node::node_type::call == node.type) {
+		std::cout << "	call " << node.value << "\n"
+		          << "	push rax\n";
+		return;
+	}
+
+	// if-else
+	if (Node::node_type::ifelse_ == node.type) {
+		static uint32_t label_number = 0;
+		const auto      elselabel = ".Lifelseelse"s + std::to_string(label_number);
+		const auto      endlabel  = ".Lifelseend"s + std::to_string(label_number);
+
+		assert(node.child.size() == 3);
+
+		// 条件式
+		gen(*node.child[0]);
+
+		std::cout << "	pop rax\n"    //条件式の結果を取り出し
+		          << "	cmp rax, 0\n" // 0と比較して
+		          << "	je " << elselabel << "\n"; // 等しければ else節 に飛ぶ
+		gen(*node.child[1]);                       // 真の時実行する文
+		std::cout << "	jmp " << endlabel << "\n"; // else の後ろに飛ぶ
+		std::cout << elselabel << ":"
+		          << "\n";   // else節
+		gen(*node.child[2]); // 偽の時実行する文
+		std::cout << endlabel << ":" << std::endl;
+
+		++label_number;
+		return;
+	}
+
+	// if
+	if (Node::node_type::if_ == node.type) {
+		static uint32_t label_number = 0;
+		const auto      label        = ".Lifend"s + std::to_string(label_number);
+
+		assert(node.child.size() == 2);
+
+		// 条件式
+		gen(*node.child[0]);
+
+		std::cout << "	pop rax\n"              //条件式の結果を取り出し
+		          << "	cmp rax, 0\n"           // 0と比較して
+		          << "	je " << label << "\n";  // 等しければ label に飛ぶ
+		gen(*node.child[1]);                    // 真の時実行する文
+		std::cout << label << ":" << std::endl; // 偽の時ここに飛ぶ
+
+		++label_number;
+		return;
+	}
+
+	// while
+	if (Node::node_type::while_ == node.type) {
+		static uint32_t label_number = 0;
+		const auto      beginlabel = ".Lwhilebegin"s + std::to_string(label_number);
+		const auto      endlabel   = ".Lwhileend"s + std::to_string(label_number);
+
+		assert(node.child.size() == 2);
+
+		std::cout << beginlabel << ":"
+		          << "\n";
+
+		// 条件式
+		gen(*node.child[0]);
+
+		std::cout << "	pop rax\n"    //条件式の結果を取り出し
+		          << "	cmp rax, 0\n" // 0と比較して
+		          << "	je " << endlabel << "\n"; // 偽なら終了
+		gen(*node.child[1]);                      // 真の時実行する文
+		std::cout << "	jmp " << beginlabel << "\n";
+		std::cout << endlabel << ":" << std::endl; // 偽の時ここに飛ぶ
+
+		++label_number;
+		return;
+	}
+
+	// for
+	if (Node::node_type::for_ == node.type) {
+		static uint32_t label_number = 0;
+		const auto      beginlabel   = ".Lforbegin"s + std::to_string(label_number);
+		const auto      endlabel     = ".Lforend"s + std::to_string(label_number);
+
+		assert(node.child.size() == 4);
+
+		// 初期化式
+		gen(*node.child[0]);
+
+		// 繰り返し開始位置
+		std::cout << beginlabel << ":"
+		          << "\n";
+
+		// 条件式
+		gen(*node.child[1]);
+
+		std::cout << "	pop rax\n"    //条件式の結果を取り出し
+		          << "	cmp rax, 0\n" // 0と比較して
+		          << "	je " << endlabel << "\n"; // 偽なら終了
+		gen(*node.child[3]);                      // 真の時実行する文
+		gen(*node.child[2]);                      // 終了時処理
+		std::cout << "	jmp " << beginlabel << "\n";
+		std::cout << endlabel << ":" << std::endl; // 偽の時ここに飛ぶ
+
+		++label_number;
+		return;
+	}
+
+	// return
+	if (Node::node_type::return_ == node.type) {
+		gen(*node.child[0]);
+		std::cout << "	pop rax\n"
+		          << "	mov rsp, rbp\n"
+		          << "	pop rbp\n"
+		          << "	ret\n";
 		return;
 	}
 
@@ -32,8 +155,8 @@ void gen(const Node &node) {
 	if (Node::node_type::assign == node.type) {
 		assert(node.child.size() == 2);
 
-		setup_identifier(*node.child.at(0));
-		gen(*node.child.at(1));
+		setup_identifier(*node.child[0]);
+		gen(*node.child[1]);
 
 		std::cout << "	pop rdi\n"
 		          << "	pop rax\n"
@@ -46,7 +169,7 @@ void gen(const Node &node) {
 	if (Node::node_type::plus == node.type ||
 	    Node::node_type::minus == node.type) {
 		assert(node.child.size() == 1);
-		gen(*node.child.at(0));
+		gen(*node.child[0]);
 
 		std::cout << "	pop rax\n";
 		switch (node.type) {
@@ -75,8 +198,8 @@ void gen(const Node &node) {
 	    Node::node_type::multiplication == node.type ||
 	    Node::node_type::division == node.type) {
 		assert(node.child.size() == 2);
-		gen(*node.child.at(0));
-		gen(*node.child.at(1));
+		gen(*node.child[0]);
+		gen(*node.child[1]);
 
 		std::cout << "	pop rdi\n";
 		std::cout << "	pop rax\n";
@@ -146,7 +269,7 @@ void gen(const Node &node) {
 		return;
 	}
 
-	std::cerr << "not implemented type(" << static_cast<int>(node.type) << ")"
-	          << std::endl;
+	std::cerr << "not implemented type(" << static_cast<int>(node.type)
+	          << ") on codegen" << std::endl;
 	std::exit(EXIT_FAILURE);
 }

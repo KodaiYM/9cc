@@ -100,8 +100,8 @@ std::string Parser::expect_identifier() {
 
 	return token;
 }
-std::unique_ptr<Node> Parser::new_node(Node::node_type type,
-                                       std::string     value) {
+std::unique_ptr<Node> Parser::new_node(Node::node_type    type,
+                                       const std::string &value) {
 	std::unique_ptr<Node> node(new Node(type));
 	node->value = value;
 	return node;
@@ -117,9 +117,83 @@ std::unique_ptr<Node> Parser::program() {
 	return node;
 }
 std::unique_ptr<Node> Parser::statement() {
-	auto node = expression();
+	std::unique_ptr<Node> node;
 
-	expect(";");
+	if (consume("{")) {
+		node = new_node(Node::node_type::statements);
+		// compound statement
+
+		while (!consume("}")) {
+			node->child.push_back(statement());
+		}
+	} else if (consume("return")) {
+		node = new_node(Node::node_type::return_, expression());
+		expect(";");
+	} else if (consume("if")) {
+		node = new_node(Node::node_type::if_);
+
+		expect("(");
+		node->child.push_back(expression());
+		expect(")");
+		node->child.push_back(statement());
+
+		// ただの if ではなく if-else の場合
+		if (consume("else")) {
+			auto ifnode = std::move(node);
+
+			node = new_node(Node::node_type::ifelse_, std::move(ifnode->child.at(0)),
+			                std::move(ifnode->child.at(1)), statement());
+		}
+	} else if (consume("for")) {
+		node = new_node(Node::node_type::for_);
+
+		expect("(");
+
+		/* 初期化式 */
+		// 式が無ければ、1、あればそれにする
+		if (consume(";")) {
+			node->child.push_back(new_node(Node::node_type::number, "1"s));
+		} else {
+			node->child.push_back(expression());
+			expect(";");
+		}
+
+		/* 条件式 */
+		// 式が無ければ、1、あればそれにする
+		if (consume(";")) {
+			node->child.push_back(new_node(Node::node_type::number, "1"s));
+		} else {
+			node->child.push_back(expression());
+			expect(";");
+		}
+
+		/* 変化式 */
+		// 式が無ければ、1、あればそれにする
+		if (consume(")")) {
+			node->child.push_back(new_node(Node::node_type::number, "1"s));
+		} else {
+			node->child.push_back(expression());
+			expect(")");
+		}
+
+		// 文
+		node->child.push_back(statement());
+	} else if (consume("while")) {
+		node = new_node(Node::node_type::while_);
+
+		expect("(");
+
+		// 条件式
+		node->child.push_back(expression());
+
+		expect(")");
+
+		// 文
+		node->child.push_back(statement());
+	} else {
+		node = expression();
+		expect(";");
+	}
 
 	return node;
 }
@@ -214,10 +288,19 @@ std::unique_ptr<Node> Parser::primary() {
 
 	if ("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_"s.find(
 	        token.front()) != std::string::npos &&
-	    token.find_first_not_of(
-	        "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_") ==
-	        token.npos) {
-		return new_node(Node::node_type::identifier, expect_identifier());
+	    token.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRST"
+	                            "UVWXYZ0123456789_") == token.npos) {
+		const auto identifier = expect_identifier();
+
+		if (!consume("(")) {
+			// identifier
+			return new_node(Node::node_type::identifier, identifier);
+		} else {
+			// function call
+			auto node = new_node(Node::node_type::call, identifier);
+			expect(")");
+			return std::move(node);
+		}
 	}
 	return new_node(Node::node_type::number, expect_number());
 }

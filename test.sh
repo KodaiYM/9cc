@@ -46,6 +46,72 @@ assert 0 '1>=2;'
 
 assert 14 'a = 3;
 b = 5 * 6 - 8;
-a + b / 2;'
+b = a + b / 2;
+1;
+return b;'
+
+# if
+assert 2 '
+a = 5;
+if (a = 3) return 2;
+return a;
+'
+
+# if
+assert 5 '
+a = 5;
+if (a == 3) return 2;
+return a;
+'
+
+# if-else
+assert 2 '
+a = 3;
+if (a == 3) return 2;
+else return 5;
+'
+assert 5 '
+a = 1;
+if (a == 3) return 2;
+else return 5;
+'
+
+# while
+assert 45 '
+s = 0;
+a = 10;
+while (a = a - 1) s = s + a;
+return s - a;
+'
+
+# for
+assert 45 '
+a=10;
+for (s=0;a=a-1;)s=s+a;
+return s;
+'
+
+# for
+assert 0 '
+a=10;
+for (s=0;a=a-1;s=s+a)
+return s;
+'
+
+# compound statement
+assert 25 '
+s = 0;
+for (i = 0; i < 5; i = i + 1) {
+  s = s + i;
+  s = s + (i + 1);
+}
+return s;
+'
+
+# function call
+# 別途、test() を作る必要はある
+assert 11 '
+return test();
+'
 
 echo OK

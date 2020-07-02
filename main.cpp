@@ -36,10 +36,8 @@ int main(int argc, char *argv[]) {
 	// calculate whole node
 	gen(*AST);
 
-	// now rax is last evaluated(stacked) value
-
 	// epilogue
-	std::cout << "	add rsp, " << 26 * 8 << "\n"
+	std::cout << "	mov rsp, rbp\n"
 	          << "	pop rbp\n";
 	std::cout << "	ret\n";
 

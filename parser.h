@@ -12,7 +12,14 @@
 
 struct Node {
 	enum class node_type {
+		call,           // function-call
+		ifelse_,        // if-else
+		if_,            // if
+		for_,           // for
+		while_,         // while
 		statements,     // ; ; ; ...
+		empty,          // empty statement
+		return_,        // return
 		assign,         // =
 		equal,          // ==
 		not_equal,      // !=
@@ -32,6 +39,14 @@ struct Node {
 	node_type type;
 	Node(node_type type)
 	    : type(type) {}
+	Node(Node &&node)
+	    : type(std::move(node.type))
+	    , value(std::move(node.value)) {
+		child.reserve(node.child.size());
+		child.insert(child.end(), std::make_move_iterator(node.child.begin()),
+		             std::make_move_iterator(node.child.end()));
+		node.child.clear();
+	}
 
 	std::vector<std::unique_ptr<Node>> child;
 	std::string                        value;
@@ -100,8 +115,13 @@ private:
 	/**
 	 * new terminal node
 	 */
-	std::unique_ptr<Node> new_node(Node::node_type type, std::string value);
+	std::unique_ptr<Node> new_node(Node::node_type    type,
+	                               const std::string &value);
 
+	void set_child_node(const std::unique_ptr<Node> &parent) const {
+		// 何もしない
+		// std::unique_ptr<Node> new_node(Node::node_type) 用
+	}
 	void set_child_node(const std::unique_ptr<Node> &parent,
 	                    std::unique_ptr<Node>        child) const {
 		parent->child.push_back(std::move(child));
