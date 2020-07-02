@@ -36,7 +36,23 @@ std::ostream &operator<<(std::ostream &stream, const Node &node) {
 
 	// call
 	if (Node::node_type::call == node.type) {
-		stream << node.value << "()";
+		stream << std::string(2 * depth, ' ') << node.value << "("
+		       << "\n";
+		auto child_it = node.child.begin();
+		while (node.child.end() != child_it) {
+			if (node.child.begin() != child_it) {
+				stream << std::string(2 * depth, ' ') << ","
+				       << "\n";
+			}
+
+			++depth;
+			stream << **child_it;
+			--depth;
+
+			++child_it;
+		}
+		stream << std::string(2 * depth, ' ') << ")"
+		       << "\n";
 		return stream;
 	}
 

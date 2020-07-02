@@ -1,4 +1,5 @@
 #include "codegen.h"
+#include <array>
 #include <cassert>
 #include <iostream>
 
@@ -7,12 +8,24 @@ using namespace std::string_literals;
 // 左辺値なら、その左辺値のアドレスをスタックに積む
 // それ以外はエラー
 static void setup_identifier(const Node &node) {
-	if (Node::node_type::identifier != node.type || node.value.size() != 1) {
+	if (Node::node_type::identifier != node.type) {
 		std::cerr << "代入式の左辺が識別子ではありません" << std::endl;
 		std::exit(EXIT_FAILURE);
 	}
+	static std::vector<std::string> identifier_list;
+	identifier_list.reserve(26);
+	auto identifier_it =
+	    std::find(identifier_list.begin(), identifier_list.end(), node.value);
+
+	// 初めての識別子
+	if (identifier_list.end() == identifier_it) {
+		identifier_list.push_back(node.value);
+		identifier_it = identifier_list.end() - 1;
+	}
+
 	std::cout << "	mov rax, rbp\n"
-	          << "	sub rax, " << (node.value[0] - 'a') * 8 << "\n"
+	          << "	sub rax, "
+	          << std::distance(identifier_list.begin(), identifier_it) * 8 << "\n"
 	          << "	push rax\n";
 }
 void gen(const Node &node) {
@@ -36,6 +49,22 @@ void gen(const Node &node) {
 
 	// call
 	if (Node::node_type::call == node.type) {
+		assert(node.child.size() <= 6);
+
+		/* 実引数の計算（右から）*/
+		for (auto it = node.child.rbegin(), rend = node.child.rend(); rend != it;
+		     ++it) {
+			gen(**it);
+		}
+
+		/* 計算した実引数をレジスタに規定のレジスタに格納（左から順に取り出すことができる）*/
+		constexpr std::string_view target_registers[] = {"rdi", "rsi", "rdx",
+		                                                 "rcx", "r8",  "r9"};
+		for (size_t i = 0; i < node.child.size(); ++i) {
+			std::cout << "	pop " << target_registers[i] << "\n";
+		}
+
+		// RSPは16の倍数になっているはずである（呼び出し規約）
 		std::cout << "	call " << node.value << "\n"
 		          << "	push rax\n";
 		return;
@@ -255,16 +284,12 @@ void gen(const Node &node) {
 		return;
 	}
 
-	// assign
-	if (Node::node_type::assign == node.type) {
-		return;
-	}
-
 	// statements
 	if (Node::node_type::statements == node.type) {
 		for (const auto &child : node.child) {
-			gen(*child);
-			std::cout << "	pop rax\n";
+			gen(*child); // 結果はスタックに入っているので
+			std::cout
+			    << "	pop rax\n"; // 必要かどうかは分からないが rax に取り出して置く
 		}
 		return;
 	}

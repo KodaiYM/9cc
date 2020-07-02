@@ -298,7 +298,16 @@ std::unique_ptr<Node> Parser::primary() {
 		} else {
 			// function call
 			auto node = new_node(Node::node_type::call, identifier);
-			expect(")");
+
+			// non-nullary function call
+			if (!consume(")")) {
+				node->child.push_back(expression());
+				while (consume(",")) {
+					node->child.push_back(expression());
+				}
+				expect(")");
+			}
+
 			return std::move(node);
 		}
 	}

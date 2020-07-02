@@ -100,18 +100,18 @@ return s;
 
 # compound statement
 assert 25 '
-s = 0;
+sum = 0;
 for (i = 0; i < 5; i = i + 1) {
-  s = s + i;
-  s = s + (i + 1);
+  sum = sum + i;
+  sum = sum + (i + 1);
 }
-return s;
+return sum;
 '
 
 # function call
 # 別途、test() を作る必要はある
 assert 11 '
-return test();
+return test(1,5,8);
 '
 
 echo OK

@@ -14,5 +14,5 @@ mul ::= sign ("*" sign | "/" sign)*
 sign ::= ("+" | "-") sign | primary
 primary ::= num
 					| ident
-					| ident "()"
+					| ident "(" ( ε | expression (, expression)* ) ")"
 					| "(" expression ")"

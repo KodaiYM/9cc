@@ -25,7 +25,9 @@ int main(int argc, char *argv[]) {
 	// prologue
 	std::cout << "	push rbp\n"
 	          << "	mov rbp, rsp\n"
-	          << "	sub rsp, " << 26 * 8 << "\n";
+	          << "	sub rsp, " << 26 * 8 // RSPは16の倍数にアライメントされている
+	                                     // とりあえず、今のところ最大26変数まで
+	          << "\n";
 
 	const auto AST = parser.makeAST(); // Abstract Syntax Tree
 	// write out abstract syntax tree
