@@ -6,16 +6,10 @@ std::ostream &operator<<(std::ostream &stream, const Tokenizer &tokenizer) {
 	return stream << tokenizer.token_list;
 }
 std::ostream &operator<<(std::ostream &stream, std::list<Token> token_list) {
-	stream << "{";
-
-	stream << std::move(token_list.front().value);
-	token_list.pop_front();
 	while (!token_list.empty()) {
-		stream << ", " << std::move(token_list.front().value);
+		stream << std::move(token_list.front().value) << "\n";
 		token_list.pop_front();
 	}
-
-	stream << "}";
 
 	return stream;
 }
@@ -34,7 +28,32 @@ std::ostream &operator<<(std::ostream &stream, const Node &node) {
 		return stream;
 	}
 
-	// call
+	// function-definition
+	if (Node::node_type::function == node.type) {
+		assert(node.child.size() == 1);
+		assert(node.child[0]->type == Node::node_type::statements);
+
+		stream << node.value << "(";
+		for (auto begin    = node.identifier_list.begin(),
+		          ident_it = node.identifier_list.begin(),
+		          end      = node.identifier_list.end();
+		     end != ident_it; ++ident_it) {
+			if (begin != ident_it) {
+				stream << ", ";
+			}
+			stream << *ident_it;
+		}
+		stream << ") {"
+		       << "\n";
+		++depth;
+		stream << *node.child[0];
+		--depth;
+		stream << "}" << std::endl;
+
+		return stream;
+	}
+
+	// function-call
 	if (Node::node_type::call == node.type) {
 		stream << std::string(2 * depth, ' ') << node.value << "("
 		       << "\n";
@@ -276,7 +295,7 @@ std::ostream &operator<<(std::ostream &stream, const Node &node) {
 	// statements
 	if (Node::node_type::statements == node.type) {
 		for (const auto &child : node.child) {
-			stream << *child << std::endl;
+			stream << *child;
 		}
 
 		return stream;

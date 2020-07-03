@@ -19,15 +19,7 @@ int main(int argc, char *argv[]) {
 
 	// first half of assembler
 	std::cout << ".intel_syntax noprefix\n"
-	             ".global main\n"
-	             "main:\n";
-
-	// prologue
-	std::cout << "	push rbp\n"
-	          << "	mov rbp, rsp\n"
-	          << "	sub rsp, " << 26 * 8 // RSPは16の倍数にアライメントされている
-	                                     // とりあえず、今のところ最大26変数まで
-	          << "\n";
+	             ".global main\n";
 
 	const auto AST = parser.makeAST(); // Abstract Syntax Tree
 	// write out abstract syntax tree
@@ -37,11 +29,6 @@ int main(int argc, char *argv[]) {
 
 	// calculate whole node
 	gen(*AST);
-
-	// epilogue
-	std::cout << "	mov rsp, rbp\n"
-	          << "	pop rbp\n";
-	std::cout << "	ret\n";
 
 	return EXIT_SUCCESS;
 }

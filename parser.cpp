@@ -111,8 +111,34 @@ std::unique_ptr<Node> Parser::program() {
 	std::unique_ptr<Node> node(new Node(Node::node_type::statements));
 
 	while (!tokenListIsEmpty()) {
-		node->child.push_back(statement());
+		node->child.push_back(function());
 	}
+
+	return node;
+}
+std::unique_ptr<Node> Parser::function() {
+	std::unique_ptr<Node> node(new Node(Node::node_type::function));
+
+	// function name
+	node->value = expect_identifier();
+
+	// dummy argument names
+	expect("(");
+	if (!consume(")")) {
+		node->identifier_list.push_back(expect_identifier());
+		while (consume(",")) {
+			node->identifier_list.push_back(expect_identifier());
+		}
+		expect(")");
+	}
+
+	// function statements
+	std::unique_ptr<Node> function_body(new Node(Node::node_type::statements));
+	expect("{");
+	while (!consume("}")) {
+		function_body->child.push_back(statement());
+	}
+	node->child.push_back(std::move(function_body));
 
 	return node;
 }

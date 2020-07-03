@@ -12,12 +12,13 @@
 
 struct Node {
 	enum class node_type {
+		function,       // function-definition
 		call,           // function-call
 		ifelse_,        // if-else
 		if_,            // if
 		for_,           // for
 		while_,         // while
-		statements,     // ; ; ; ...
+		statements,     // compound statements
 		empty,          // empty statement
 		return_,        // return
 		assign,         // =
@@ -49,7 +50,9 @@ struct Node {
 	}
 
 	std::vector<std::unique_ptr<Node>> child;
-	std::string                        value;
+	std::vector<std::string>
+	            identifier_list; // type = function の時の、識別子リスト
+	std::string value;
 };
 
 class TokenManager {
@@ -145,6 +148,7 @@ private:
 
 	/* make nodes */
 	std::unique_ptr<Node> program();
+	std::unique_ptr<Node> function();
 	std::unique_ptr<Node> statement();
 	std::unique_ptr<Node> expression();
 	std::unique_ptr<Node> assign();

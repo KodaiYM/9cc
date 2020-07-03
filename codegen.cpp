@@ -1,38 +1,68 @@
 #include "codegen.h"
-#include <array>
 #include <cassert>
+#include <forward_list>
 #include <iostream>
 
 using namespace std::string_literals;
 
-// 左辺値なら、その左辺値のアドレスをスタックに積む
-// それ以外はエラー
-static void setup_identifier(const Node &node) {
-	if (Node::node_type::identifier != node.type) {
-		std::cerr << "代入式の左辺が識別子ではありません" << std::endl;
-		std::exit(EXIT_FAILURE);
-	}
-	static std::vector<std::string> identifier_list;
-	identifier_list.reserve(26);
-	auto identifier_it =
-	    std::find(identifier_list.begin(), identifier_list.end(), node.value);
+static std::forward_list<std::vector<std::string>> identifier_list;
+
+/**
+ * ブロックの追加
+ */
+static void push_block() {
+	identifier_list.emplace_front();
+}
+
+/**
+ * ブロックの削除
+ */
+static void pop_block() {
+	identifier_list.pop_front();
+}
+
+/**
+ * identifier: 識別子
+ * identifier を 最新のブロック に所属する識別子として登録する
+ */
+static void register_identifier(const std::string &identifier) {
+	assert(!identifier_list.empty());
 
 	// 初めての識別子
-	if (identifier_list.end() == identifier_it) {
-		identifier_list.push_back(node.value);
-		identifier_it = identifier_list.end() - 1;
+	if (auto &front_block = identifier_list.front();
+	    std::find(front_block.begin(), front_block.end(), identifier) ==
+	    front_block.end()) {
+		front_block.push_back(identifier);
 	}
-
-	std::cout << "	mov rax, rbp\n"
-	          << "	sub rax, "
-	          << std::distance(identifier_list.begin(), identifier_it) * 8 << "\n"
-	          << "	push rax\n";
 }
+/**
+ * identifier: 識別子
+ * identifier を 最新のブロック に所属する識別子として登録する
+ * 最新のブロックから identifier を検索してスタックにそのアドレスを返却する
+ */
+static void setup_identifier(const std::string &identifier) {
+	assert(!identifier_list.empty());
+
+	auto &front_block = identifier_list.front();
+	if (auto identifier_it =
+	        std::find(front_block.cbegin(), front_block.cend(), identifier);
+	    identifier_it == front_block.end()) {
+		std::cerr << "識別子が見つかりませんでした" << std::endl;
+		std::exit(EXIT_FAILURE);
+	} else {
+		std::cout << "	mov rax, rbp\n"
+		          << "	sub rax, "
+		          << (std::distance(front_block.cbegin(), identifier_it) + 1) * 8
+		          << "\n"
+		          << "	push rax\n";
+	}
+}
+
 void gen(const Node &node) {
 	if (Node::node_type::identifier == node.type) {
 		assert(node.child.empty());
 
-		setup_identifier(node);
+		setup_identifier(node.value);
 		std::cout << "	pop rax\n"
 		          << "	mov rax, [rax]\n"
 		          << "	push rax\n";
@@ -43,6 +73,68 @@ void gen(const Node &node) {
 		assert(node.child.empty());
 
 		std::cout << "	push " << node.value << "\n";
+
+		return;
+	}
+
+	// 引数に対応するレジスタ
+	constexpr const char *target_registers[] = {"rdi", "rsi", "rdx",
+	                                            "rcx", "r8",  "r9"};
+
+	// function-definition
+	if (Node::node_type::function == node.type) {
+		assert(node.child.size() == 1);
+
+		std::cout << node.value << ":"
+		          << "\n";
+
+		push_block();
+
+		/* 仮引数の識別子を登録 */
+		for (const auto &dummy_argument_name : node.identifier_list) {
+			register_identifier(dummy_argument_name);
+		}
+
+		/* あるノード下の識別子の数を数えつつ、識別子の登録もする */
+		constexpr auto funcHowManyIdentifiers = [](auto &&     func,
+		                                           const Node &node) -> size_t {
+			if (Node::node_type::identifier == node.type) {
+				register_identifier(node.value);
+				return 1;
+			}
+
+			size_t howManyIdentifiers = 0;
+			for (const auto &child : node.child) {
+				howManyIdentifiers += func(func, *child);
+			}
+			return howManyIdentifiers;
+		};
+		const size_t howManyIdentifiers =
+		    funcHowManyIdentifiers(funcHowManyIdentifiers, node);
+
+		// プロローグ
+		std::cout << "	push rbp\n"
+		          << "	mov rbp, rsp\n"
+		          << "	sub rsp, " << howManyIdentifiers * 8 << "\n"; // 変数の数
+
+		/* 仮引数に実引数を代入 */
+		for (size_t i = 0; i < node.identifier_list.size(); ++i) {
+			setup_identifier(node.identifier_list[i]);
+			std::cout << "	pop rax\n"
+			          << "	mov [rax], " << target_registers[i] << "\n";
+		}
+
+		/* 関数本体の実行 */
+		for (const auto &child : node.child) {
+			gen(*child);
+		}
+
+		// エピローグ
+		std::cout << "	mov rsp, rbp\n"
+		          << "	pop rbp\n"
+		          << "	ret\n";
+
+		pop_block();
 
 		return;
 	}
@@ -58,13 +150,12 @@ void gen(const Node &node) {
 		}
 
 		/* 計算した実引数をレジスタに規定のレジスタに格納（左から順に取り出すことができる）*/
-		constexpr std::string_view target_registers[] = {"rdi", "rsi", "rdx",
-		                                                 "rcx", "r8",  "r9"};
 		for (size_t i = 0; i < node.child.size(); ++i) {
 			std::cout << "	pop " << target_registers[i] << "\n";
 		}
 
-		// RSPは16の倍数になっているはずである（呼び出し規約）
+		// RSPは16の倍数になっているはずである（最初のローカル変数の確保で、16の倍数になるよう調整しているはずだから）（呼び出し規約）
+		// うーん、まずいこともあるなぁ…
 		std::cout << "	call " << node.value << "\n"
 		          << "	push rax\n";
 		return;
@@ -183,8 +274,9 @@ void gen(const Node &node) {
 	// assign
 	if (Node::node_type::assign == node.type) {
 		assert(node.child.size() == 2);
+		assert(node.child[0]->type == Node::node_type::identifier);
 
-		setup_identifier(*node.child[0]);
+		setup_identifier(node.child[0]->value);
 		gen(*node.child[1]);
 
 		std::cout << "	pop rdi\n"

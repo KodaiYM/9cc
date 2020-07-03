@@ -1,4 +1,5 @@
-program ::= statement*
+program ::= function*
+function ::= ident "(" (ε | ident (, ident)*) ")" "{" statement* "}"
 statement ::= expression ";"
 						| "{" statement* "}"
 						| "return" expr ";"
