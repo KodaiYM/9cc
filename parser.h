@@ -30,10 +30,12 @@ struct Node {
 		less,           // <
 		addition,       // binary +
 		subtraction,    // binary -
-		multiplication, // *
+		multiplication, // binary *
 		division,       // /
 		plus,           // unary +
 		minus,          // unary -
+		address,        // unary &
+		indirection,    // unary *
 		number,         // unsigned integer literal
 		identifier      // identifier
 	};
@@ -157,6 +159,7 @@ private:
 	std::unique_ptr<Node> add();
 	std::unique_ptr<Node> mul();
 	std::unique_ptr<Node> sign();
+	std::unique_ptr<Node> address();
 	std::unique_ptr<Node> primary();
 
 public:

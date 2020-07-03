@@ -187,7 +187,9 @@ std::ostream &operator<<(std::ostream &stream, const Node &node) {
 
 	// unary operator
 	if (Node::node_type::plus == node.type ||
-	    Node::node_type::minus == node.type) {
+	    Node::node_type::minus == node.type ||
+	    Node::node_type::address == node.type ||
+	    Node::node_type::indirection == node.type) {
 		std::string type;
 
 		switch (node.type) {
@@ -196,6 +198,12 @@ std::ostream &operator<<(std::ostream &stream, const Node &node) {
 			break;
 		case Node::node_type::minus:
 			type = '-';
+			break;
+		case Node::node_type::address:
+			type = '&';
+			break;
+		case Node::node_type::indirection:
+			type = '*';
 			break;
 		}
 

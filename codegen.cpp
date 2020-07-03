@@ -35,10 +35,11 @@ static void register_identifier(const std::string &identifier) {
 		front_block.push_back(identifier);
 	}
 }
+
 /**
  * identifier: 識別子
- * identifier を 最新のブロック に所属する識別子として登録する
  * 最新のブロックから identifier を検索してスタックにそのアドレスを返却する
+ * なければエラー
  */
 static void setup_identifier(const std::string &identifier) {
 	assert(!identifier_list.empty());
@@ -286,7 +287,7 @@ void gen(const Node &node) {
 		return;
 	}
 
-	// unary operator
+	// unary plus, minus operator
 	if (Node::node_type::plus == node.type ||
 	    Node::node_type::minus == node.type) {
 		assert(node.child.size() == 1);
@@ -304,6 +305,26 @@ void gen(const Node &node) {
 		default:
 			assert(false);
 		}
+		return;
+	}
+
+	// unary address operator
+	if (Node::node_type::address == node.type) {
+		assert(node.child.size() == 1);
+		assert(node.child[0]->type == Node::node_type::identifier);
+
+		setup_identifier(node.child[0]->value);
+		return;
+	}
+
+	// unary indirection operator
+	if (Node::node_type::indirection == node.type) {
+		assert(node.child.size() == 1);
+
+		gen(*node.child[0]);              // スタックにアドレスがある
+		std::cout << "	pop rax\n"        // rax にアドレスを読み出して
+		          << "	mov rax, [rax]\n" // rax にそのアドレスの値を書いて
+		          << "	push rax\n";      // rax の値をスタックに積む
 		return;
 	}
 

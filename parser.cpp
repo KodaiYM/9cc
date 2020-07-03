@@ -300,6 +300,17 @@ std::unique_ptr<Node> Parser::sign() {
 		return new_node(Node::node_type::minus, sign());
 	}
 
+	return address();
+}
+
+std::unique_ptr<Node> Parser::address() {
+	if (consume("*")) {
+		return new_node(Node::node_type::indirection, address());
+	}
+	if (consume("&")) {
+		return new_node(Node::node_type::address, address());
+	}
+
 	return primary();
 }
 std::unique_ptr<Node> Parser::primary() {

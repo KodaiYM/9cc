@@ -49,7 +49,7 @@ Tokenizer::Tokenizer(std::string_view token_str)
 			{
 				const std::vector<const char *> operators = {
 				    "==", "!=", ">=", "<=", ">", "<", "+", "-", "*",
-				    "/",  "(",  ")",  "=",  ";", "{", "}", ","};
+				    "/",  "(",  ")",  "=",  ";", "{", "}", ",", "&"};
 				if (auto found_op = std::find_if(operators.begin(), operators.end(),
 				                                 [&token_line](const auto &op) {
 					                                 return token_line.starts_with(op);

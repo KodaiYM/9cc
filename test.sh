@@ -129,4 +129,13 @@ test (first, second, third) {
 	return first + second * third;
 }'
 
+# address, indirection
+assert 1 '
+main () {
+	x;
+	y = &x;
+	return *y**y++1+*y*-*y;
+}
+'
+
 echo OK
